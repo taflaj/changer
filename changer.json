@@ -1,0 +1,85 @@
+{
+    "width": 1920,
+    "height": 1080,
+    "catalog": "/tmp/changer_files.txt",
+    "files": {
+        "type": ".+\\.(avif|bmp|jp.?g|png|svg|webp)",
+        "folders": [
+            {
+                "path": "/home/<void>/Pictures/",
+                "recursive": true
+            },
+            {
+                "path": "/usr/share/backgrounds/",
+                "recursive": true
+            }
+        ],
+        "trash": []
+    },
+    "modules": [
+        {
+            "type": "system",
+            "enabled": true,
+            "gravity": "SouthWest",
+            "geometry": "+2+2",
+            "font": "Cantarell",
+            "size": 12,
+            "color": "White",
+            "shadow": "DarkGreen",
+            "file": "/tmp/changer_ipinfo.json",
+            "token": "<void>"
+        },
+        {
+            "type": "file",
+            "enabled": true,
+            "gravity": "SouthEast",
+            "geometry": "+2+2",
+            "font": "Cantarell",
+            "size": 12,
+            "color": "Yellow",
+            "shadow": "DarkBlue"
+        },
+        {
+            "type": "image",
+            "enabled": true,
+            "gravity": "South",
+            "geometry": "+0+2",
+            "font": "Cantarell",
+            "size": 12,
+            "color": "Grey",
+            "shadow": "DarkRed"
+        },
+        {
+            "type": "weather",
+            "enabled": true,
+            "appid": "<void>",
+            "location": "id=4140963",
+            "gravity": "NorthWest",
+            "geometry": "+0+0",
+            "offset": "+2+100",
+            "font": "Cantarell",
+            "size": 12,
+            "color": "Yellow",
+            "shadow": "DarkRed",
+            "file": "/tmp/changer_weather.png"
+        }
+    ],
+    "wallpaper": {
+        "file": "",
+        "wallpaper": "/home/<void>/.local/share/wallpaper.jpeg",
+        "render": "fit/scale",
+        "auto_adjust": false,
+        "filler": {
+            "mode": "blank",
+            "blank": {
+                "color": "Black"
+            },
+            "blur": "2x2",
+            "overlap": {
+                "width": 80,
+                "height": 80
+            }
+        },
+        "exceptions": {}
+    }
+}
