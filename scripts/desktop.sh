@@ -50,8 +50,7 @@ get_desktop() {
     ps -e | grep -E '^.* Hyprland$' > /dev/null
     if [ $? -eq 0 ]; then
         DESKTOP='Hyprland'
-        # VERSION=`hyprctl version | head -1 | sed -e 's/,.*commit/ commit/' -e 's/ (props.*to/version/' -e 's/).//'`
-        VERSION=`hyprctl version | head -1 | sed -e 's/,.*commit//' -e 's/ *([props|version].*to//' -e 's/).//' | awk '{print $1 " " $3 " commit " $2}'`
+        VERSION=`hyprctl version | head -1 | awk '{print $1 " " $2}'`
         PID=`pidof Hyprland`
     fi
     # i3

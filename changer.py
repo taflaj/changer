@@ -3,11 +3,12 @@
 # main.py
 
 import logging, sys
+from typing import Final
 
 from modules.changer import Changer
 
 
-VERSION = '1.0.0'
+VERSION: Final[str] = '1.1.0'
 
 
 if __name__ == '__main__':
