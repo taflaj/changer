@@ -175,9 +175,8 @@ class Changer:
             path = folder['path'] + '**'
             all_files = glob.glob(path, recursive=folder['recursive'])
             for filename in all_files:
-                if os.path.isfile(filename):
-                    if re.match(pattern, filename) != None:
-                        files.add(filename)
+                if os.path.isfile(filename) and re.match(pattern, filename) != None:
+                    files.add(filename)
         logging.info(f'{len(files)} files in repository')
         with open(self.catalog, 'w') as f:
             for filename in files:
@@ -207,16 +206,32 @@ class Changer:
             self.exceptions.set_exception(filename, style)
         self.__set_wallpaper__(style, exception)
 
-    def __set_wallpaper__(self, style: str, exception: bool) -> None:
+    def __set_backdrop__(self, style: str, exception: bool) -> str:
         filename = self.config['wallpaper']['file']
         oriented = self.system.create_temp_file(suffix='.png')
         script = Script(self.system)
         script.append(f"magick '{filename}' -auto-orient '{oriented}'")
-        script.run()
+        script.append(f"identify -format '%w|%h' '{oriented}'")
+        _, result, _ = script.run()
+        params = result.split('|')
+        image_width = int(params[0])
+        image_height = int(params[1])
+        image_ratio = image_width / image_height
         script.reset()
         width = self.config['width']
         height = self.config['height']
         backdrop = self.system.create_temp_file(suffix='.png')
+        if not exception:
+            if self.config['wallpaper']['auto_adjust']['enabled']:
+                logging.debug('Automaticly adjusting image.')
+                tolerance = self.config['wallpaper']['auto_adjust']['tolerance']
+                if image_width <= width and image_height <= height:
+                    if image_width >= tolerance['horizontal'] and image_height >= tolerance['vertical']:
+                        pass
+                    else:
+                        style = 'fit/scale'
+                elif image_ratio < 1:
+                    style = 'fit/scale'
         if style == 'center':
             script.append(f"magick -size {width}x{height} canvas:{self.config['wallpaper']['filler']['blank']['color']} -gravity Center '{oriented}' -composite '{backdrop}'")
         elif style == 'combo/mosaic':
@@ -225,11 +240,6 @@ class Changer:
             script.append(f"magick -size {width}x{height} tile:'{tile}' '{backdrop}'")
         elif style == 'fill/zoom':
             screen_ratio = width / height
-            temp_script = Script(self.system)
-            temp_script.append(f"identify -format '%w|%h' '{oriented}'")
-            _, result, _ = temp_script.run()
-            params = result.split('|')
-            image_ratio = int(params[0]) / int(params[1])
             size = str(width) if image_ratio < screen_ratio else f'x{height}'
             script.append(f"magick -size {width}x{height} canvas:none -gravity Center '{oriented}' -resize {size} -composite '{backdrop}'")
         elif style == 'fit/scale':
@@ -241,9 +251,13 @@ class Changer:
         else: # tile
             script.append(f"magick -size {width}x{height} tile:'{oriented}' '{backdrop}'")
         script.run()
+        return backdrop
+
+    def __set_wallpaper__(self, style: str, exception: bool) -> None:
+        backdrop = self.__set_backdrop__(style, exception)
         foreground = self.system.create_temp_file(suffix='.png')
         fore = Script(self.system)
-        command = f'magick -size {width}x{height} canvas:none \\'
+        command = f"magick -size {self.config['width']}x{self.config['height']} canvas:none \\"
         fore.append(command)
         background = self.system.create_temp_file(suffix='.png')
         back = Script(self.system)
@@ -255,7 +269,7 @@ class Changer:
         fore.run()
         back.append(f"  -channel RGBA -blur 2x2 '{background}'")
         back.run()
-        script.reset()
+        script = Script(self.system)
         wallpaper = self.config['wallpaper']['wallpaper']
         script.append(f"magick '{backdrop}' '{background}' -composite '{foreground}' -composite '{wallpaper}'")
         script.run()

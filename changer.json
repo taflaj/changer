@@ -67,8 +67,14 @@
     "wallpaper": {
         "file": "",
         "wallpaper": "/home/<void>/.local/share/wallpaper.jpeg",
-        "render": "fit/scale",
-        "auto_adjust": false,
+        "render": "fill/zoom",
+        "auto_adjust": {
+            "enabled": true,
+            "tolerance": {
+                "horizontal": 1344,
+                "vertical": 756
+            }
+        },
         "filler": {
             "mode": "blank",
             "blank": {
