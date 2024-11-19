@@ -19,7 +19,7 @@ get_env() {
     fi
 }
 
-source scripts/desktop.sh
+source scripts/desktop.sh ''
 get_env
 if [ "$DESKTOP" = "Budgie" ] || [ "$DESKTOP" = "Gnome" ]; then
     gsettings set org.gnome.desktop.background picture-uri "file://$1"

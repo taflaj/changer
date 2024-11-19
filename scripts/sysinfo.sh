@@ -4,7 +4,7 @@
 
 python3 --version > $1
 magick -version | grep Version | sed -e 's/Version: //' -e 's/http.*$//' >> $1
-source scripts/desktop.sh
+source scripts/desktop.sh $4
 echo $VERSION >> $1
 $SHELL --version | head -1 >> $1
 uname -norv >> $1

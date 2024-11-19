@@ -72,7 +72,8 @@ class Changer:
             back.append(command)
         elif module['type'] == 'system':
             sysinfo = self.system.create_temp_file(suffix='.txt', mode='w')
-            execute(['./scripts/sysinfo.sh', sysinfo, module['file'], module['token']])
+            extra = self.system.create_temp_file(mode='w')
+            execute(['./scripts/sysinfo.sh', sysinfo, module['file'], module['token'], extra])
             fore.append(f"{command} -stroke none -fill {module['color']} \\")
             back.append(f"{command} -strokewidth 2 -stroke {module['shadow']} \\")
             command = f"    -annotate {module['geometry']} '@{sysinfo}' \\"
@@ -106,29 +107,29 @@ class Changer:
                 f.write('Visibility: {:.2f} mi = {:.2f} km\n'.format(v / 1609, v / 1000))
             wind = data['wind']['speed']
             deg = data['wind']['deg']
-            direction = 'N' if deg > 348.75 else \
-                'NNW' if deg > 326.75 else \
-                'NW' if deg > 303.75 else \
-                'WNW' if deg > 281.25 else \
-                'W' if deg > 258.75 else \
-                'WSW' if deg > 216.25 else \
-                'SW' if deg > 213.75 else \
-                'SSW' if deg > 191.25 else \
-                'S' if deg > 168.75 else \
-                'SSE' if deg > 146.25 else \
-                'SE' if deg > 123.75 else \
-                'ESE' if deg > 101.25 else \
-                'E' if deg > 78.75 else \
-                'ENE' if deg > 56.25 else \
-                'NE' if deg > 33.75 else \
-                'NNE' if deg > 11.25 else \
-                'N'
+            direction = 'N' if deg > 348.75 \
+                else 'NNW' if deg > 326.75 \
+                else 'NW' if deg > 303.75 \
+                else 'WNW' if deg > 281.25 \
+                else 'W' if deg > 258.75 \
+                else 'WSW' if deg > 216.25 \
+                else 'SW' if deg > 213.75 \
+                else 'SSW' if deg > 191.25 \
+                else 'S' if deg > 168.75 \
+                else 'SSE' if deg > 146.25 \
+                else 'SE' if deg > 123.75 \
+                else 'ESE' if deg > 101.25 \
+                else 'E' if deg > 78.75 \
+                else 'ENE' if deg > 56.25 \
+                else 'NE' if deg > 33.75 \
+                else 'NNE' if deg > 11.25 \
+                else 'N'
             f.write('Wind: {:.1f} mph = {:.1f} km/h {}\n'.format(wind * 2.23694, wind * 3.6, direction))
         script.reset()
         icon = self.system.create_temp_file(suffix='.png')
         script.append(f"curl --output '{icon}' --silent 'http://openweathermap.org/img/wn/{w['icon']}@2x.png'")
         blur = self.system.create_temp_file(suffix='.png')
-        script.append(f"magick '{icon}' -resize 125% -fill Black -colorize 50% -channel RGBA -blur 2x2 '{blur}'")
+        script.append(f"magick '{icon}' -resize 110% -fill Black -colorize 50% -channel RGBA -blur 2x2 '{blur}'")
         full = self.system.create_temp_file(suffix='.png')
         script.append(f"magick -size 100x100 canvas:#ffffff40 -gravity Center '{blur}' -composite '{icon}' -composite '{full}'")
         script.append(f"magick -size 1024x640 canvas:none -font {module['font']} -pointsize {module['size']} -gravity {module['gravity']} \\")
@@ -191,12 +192,10 @@ class Changer:
     def __do_style__(self, style: str) -> None:
         filename = self.config['wallpaper']['file']
         exception = True
-        if style in ['combo', 'mosaic']:
-            style = 'combo/mosaic'
-        elif style in ['fill', 'zoom']:
-            style = 'fill/zoom'
-        elif style in ['fit', 'scale']:
-            style = 'fit/scale'
+        style = 'combo/mosaic' if style in ['combo', 'mosaic'] \
+            else 'fill/zoom' if style in ['fill', 'zoom'] \
+            else 'fit/scale' if style in ['fit', 'scale'] \
+            else style
         logging.info(f'New custom style for {filename}: {style}')
         if style == 'default':
             self.exceptions.clear_exception(filename)
@@ -205,6 +204,18 @@ class Changer:
         else:
             self.exceptions.set_exception(filename, style)
         self.__set_wallpaper__(style, exception)
+
+    def __get_base_color__(self, keyword: str) -> str:
+        script = Script(self.system)
+        script.append(f"identify -verbose '{self.config['wallpaper']['file']}' | \\")
+        script.append(f" command grep {keyword} | \\")
+        script.append("  awk '{print $2}'")
+        _, result, _ = script.run()
+        components = result.split('\n')
+        __hex__ = lambda i: hex(round(float(components[i])))[2:]
+        if keyword == 'median':
+            __hex__ = lambda i: hex(int(components[i]))[2:]
+        return f'#{__hex__(0)}{__hex__(1)}{__hex__(2)}'
 
     def __set_backdrop__(self, style: str, exception: bool) -> str:
         filename = self.config['wallpaper']['file']
@@ -220,6 +231,20 @@ class Changer:
         script.reset()
         width = self.config['width']
         height = self.config['height']
+        base = self.system.create_temp_file(suffix='.png')
+        filler = self.config['wallpaper']['filler']
+        mode = filler['mode']
+        if mode == 'blur':
+            script.append(f"magick '{oriented}' -resize {width}x{height}! \\")
+            script.append(f'  -channel RGBA -blur {filler[mode]} \\')
+            script.append(f"  '{base}'")
+        elif mode == 'overlap':
+            pass
+        elif mode == 'blank':
+            color = filler[mode]['color']
+            color = self.__get_base_color__(color) if color in ['mean', 'median'] \
+                else color
+            script.append(f"magick -size {width}x{height} canvas:{color} '{base}'")
         backdrop = self.system.create_temp_file(suffix='.png')
         if not exception:
             if self.config['wallpaper']['auto_adjust']['enabled']:
@@ -233,7 +258,7 @@ class Changer:
                 elif image_ratio < 1:
                     style = 'fit/scale'
         if style == 'center':
-            script.append(f"magick -size {width}x{height} canvas:{self.config['wallpaper']['filler']['blank']['color']} -gravity Center '{oriented}' -composite '{backdrop}'")
+            script.append(f"magick '{base}' -gravity Center '{oriented}' -composite '{backdrop}'")
         elif style == 'combo/mosaic':
             tile = self.system.create_temp_file(suffix='.png')
             script.append(f"magick '{oriented}' -resize {width}x{height} '{tile}'")
@@ -245,7 +270,7 @@ class Changer:
         elif style == 'fit/scale':
             scaled = self.system.create_temp_file(suffix='.png')
             script.append(f"magick '{oriented}' -resize {width}x{height} '{scaled}'")
-            script.append(f"magick -size {width}x{height} canvas:{self.config['wallpaper']['filler']['blank']['color']} -gravity Center '{scaled}' -composite '{backdrop}'")
+            script.append(f"magick '{base}' -gravity Center '{scaled}' -composite '{backdrop}'")
         elif style == 'stretch':
             script.append(f"magick '{oriented}' -resize {width}x{height}! '{backdrop}'")
         else: # tile

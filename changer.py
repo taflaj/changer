@@ -8,7 +8,7 @@ from typing import Final
 from modules.changer import Changer
 
 
-VERSION: Final[str] = '1.1.0'
+VERSION: Final[str] = '1.1.1'
 
 
 if __name__ == '__main__':
