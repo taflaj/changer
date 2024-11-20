@@ -231,20 +231,6 @@ class Changer:
         script.reset()
         width = self.config['width']
         height = self.config['height']
-        base = self.system.create_temp_file(suffix='.png')
-        filler = self.config['wallpaper']['filler']
-        mode = filler['mode']
-        if mode == 'blur':
-            script.append(f"magick '{oriented}' -resize {width}x{height}! \\")
-            script.append(f'  -channel RGBA -blur {filler[mode]} \\')
-            script.append(f"  '{base}'")
-        elif mode == 'overlap':
-            pass
-        elif mode == 'blank':
-            color = filler[mode]['color']
-            color = self.__get_base_color__(color) if color in ['mean', 'median'] \
-                else color
-            script.append(f"magick -size {width}x{height} canvas:{color} '{base}'")
         backdrop = self.system.create_temp_file(suffix='.png')
         if not exception:
             if self.config['wallpaper']['auto_adjust']['enabled']:
@@ -257,7 +243,28 @@ class Changer:
                         style = 'fit/scale'
                 elif image_ratio < 1:
                     style = 'fit/scale'
+        base = self.system.create_temp_file(suffix='.png')
+
+        def fill_base() -> None:
+            filler = self.config['wallpaper']['filler']
+            mode = filler['mode']
+            if mode == 'blur':
+                screen_ratio = width / height
+                size = str(width) if image_ratio < screen_ratio else f'x{height}'
+                script.append(f"magick -size {width}x{height} canvas:none -gravity Center \\")
+                script.append(f"  '{oriented}' -resize {size} -composite \\")
+                script.append(f'  -channel RGBA -blur {filler[mode]} \\')
+                script.append(f"  '{base}'")
+            elif mode == 'overlap':
+                pass
+            elif mode == 'blank':
+                color = filler[mode]['color']
+                color = self.__get_base_color__(color) if color in ['mean', 'median'] \
+                    else color
+                script.append(f"magick -size {width}x{height} canvas:{color} '{base}'")
+
         if style == 'center':
+            fill_base()
             script.append(f"magick '{base}' -gravity Center '{oriented}' -composite '{backdrop}'")
         elif style == 'combo/mosaic':
             tile = self.system.create_temp_file(suffix='.png')
@@ -268,6 +275,7 @@ class Changer:
             size = str(width) if image_ratio < screen_ratio else f'x{height}'
             script.append(f"magick -size {width}x{height} canvas:none -gravity Center '{oriented}' -resize {size} -composite '{backdrop}'")
         elif style == 'fit/scale':
+            fill_base()
             scaled = self.system.create_temp_file(suffix='.png')
             script.append(f"magick '{oriented}' -resize {width}x{height} '{scaled}'")
             script.append(f"magick '{base}' -gravity Center '{scaled}' -composite '{backdrop}'")
