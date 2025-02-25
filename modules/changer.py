@@ -1,7 +1,6 @@
 # modules/changer.py
 
 import argparse, glob, json, logging, os, re, secrets, sys, time
-
 from modules.system import execute, Script, System
 
 
@@ -13,8 +12,9 @@ class Exceptions:
         if filename in self.exceptions:
             del self.exceptions[filename]
 
-    def get_exception(self, filename: str) -> str | None:
-        return self.exceptions[filename] if filename in self.exceptions else None
+    get_exception = lambda self, filename: self.exceptions[filename] if filename in self.exceptions else None
+    # def get_exception(self, filename: str) -> str | None:
+    #     return self.exceptions[filename] if filename in self.exceptions else None
     
     def set_exception(self, filename: str, exception: str) -> None:
         self.exceptions[filename] = exception
@@ -30,16 +30,19 @@ class Changer:
         parser.add_argument('-c', '--config', help=f'Configuration file (default={default_config})', default=default_config)
         self.args, self.extra = parser.parse_known_args()
 
-    def __help__(self) -> None:
+    def __help__(self, version: str) -> None:
+        self.__do_version__(version)
+        print()
         print('Commands:')
         print('=========')
-        print('commands  Presents this list and exits.')
-        print('delete    Deletes the current wallpaper from the repository.')
-        print('next      Changes the wallpaper, setting it to the predefined style.')
-        print('reload    Reloads all pictures according to the configuration.')
-        print('skip      Removes the current wallpaper from the sequence (without deleting it).')
-        print('version   Displays the current program version and exits.')
-        print('<style>   Defines the style for the current wallpaper:')
+        print('commands         Presents this list and exits.')
+        print('convert <image>  Converts <image> to different formats so it can be presented on a blog.')
+        print('delete           Deletes the current wallpaper from the repository.')
+        print('next             Changes the wallpaper, setting it to the predefined style.')
+        print('reload           Reloads all pictures according to the configuration.')
+        print('skip             Removes the current wallpaper from the sequence (without deleting it).')
+        print('version          Displays the current program version and exits.')
+        print('<style>          Defines the style for the current wallpaper:')
         print('  center')
         print('  combo | mosaic')
         print('  default')
@@ -140,6 +143,34 @@ class Changer:
         script.append(f'  {module['file']}')
         script.run()
 
+    def __do_convert__(self) -> None:
+        if len(self.extra) == 0:
+            logging.fatal('Please include name of image file to be converted.')
+        else:
+            input_file = self.extra[0]
+            logging.debug(f'Converting {input_file}')
+            script = Script(self.system)
+            oriented = self.system.create_temp_file(suffix='.png')
+            script.append(f'magick "{input_file}" -auto-orient {oriented}')
+            script.append(f'identify -format \'%h\' "{oriented}"')
+            _, result, _ = script.run()
+            height = int(result)
+            width = round(height * 16 / 9)
+            logging.info(f'Resizing to {width}×{height}')
+            script.reset()
+            script.append(f'magick -size {width}x{height} canvas:none -gravity Center \\')
+            script.append(f'  {oriented} -resize {width} -composite \\')
+            script.append(f'  -channel RGBA -blur {self.config['wallpaper']['filler']['blur']} \\')
+            script.append(f'  {oriented} -composite \\')
+            script.append(f'  "{input_file}.blurred.jpeg"')
+            script.append(f'magick -size {width}x{height} canvas:{self.__get_base_color__('mean', oriented)} -gravity Center \\')
+            script.append(f'  {oriented} -composite \\')
+            script.append(f'  "{input_file}.mean.jpeg"')
+            script.append(f'magick -size {width}x{height} canvas:{self.__get_base_color__('median', oriented)} -gravity Center \\')
+            script.append(f'  {oriented} -composite \\')
+            script.append(f'  "{input_file}.median.jpeg"')
+            script.run()
+          
     def __do_delete__(self) -> None:
         filename = self.config['wallpaper']['file']
         logging.info(f'Deleting {filename}')
@@ -152,13 +183,8 @@ class Changer:
         self.__do_next__()
 
     def __do_next__(self) -> None:
-        files = []
         with open(self.catalog, 'r') as f:
-            while True:
-                filename = f.readline()
-                if len(filename) == 0:
-                    break
-                files.append(filename[:-1])
+            files = f.read().splitlines()
         exception = True
         while True:
             n = secrets.randbelow(len(files))
@@ -216,16 +242,21 @@ class Changer:
             self.exceptions.set_exception(filename, style)
         self.__set_wallpaper__(style, exception)
 
-    def __get_base_color__(self, keyword: str) -> str:
+    def __do_version__(self, version: str) -> None:
+        print(f'{sys.argv[0]} {version}')
+        print('Copyright © 2024, 2025 Jose Tafla. All rights reserved.')
+
+    def __get_base_color__(self, keyword: str, input_file: str = None) -> str:
         script = Script(self.system)
-        script.append(f'identify -verbose \'{self.config['wallpaper']['file']}\' | \\')
+        input_file = self.config['wallpaper']['file'] if input_file == None else input_file
+        script.append(f'identify -verbose \'{input_file}\' | \\')
         script.append(f' command grep {keyword} | \\')
         script.append('  awk \'{print $2}\'')
         _, result, _ = script.run()
         components = result.split('\n')
-        __hex__ = lambda i: hex(round(float(components[i])))[2:]
+        __hex__ = lambda i: ('0' + hex(round(float(components[i])))[2:])[-2:]
         if keyword == 'median':
-            __hex__ = lambda i: hex(int(components[i]))[2:]
+            __hex__ = lambda i: ('0' + hex(int(components[i]))[2:])[-2:]
         return f'#{__hex__(0)}{__hex__(1)}{__hex__(2)}'
 
     def __set_backdrop__(self, style: str, exception: bool) -> str:
@@ -348,7 +379,9 @@ class Changer:
         try:
             command = self.args.command
             if command == 'commands' or command == 'help':
-                self.__help__()
+                self.__help__(version)
+            elif command == 'convert':
+                self.__do_convert__()
             elif command == 'delete':
                 self.__do_delete__()
             elif command == 'next':
@@ -363,8 +396,7 @@ class Changer:
             elif command == 'skip':
                 self.__do_skip__()
             elif command == 'version':
-                print(f'{sys.argv[0]} {version}')
-                print('Copyright © 2024 Jose Tafla. All rights reserved.')
+                self.__do_version__(version)
             elif command in ['center', 'default', 'combo', 'fill', 'fit', 'mosaic', 'scale', 'stretch', 'tile', 'zoom']:
                 self.__do_style__(command)
             else:
