@@ -3,7 +3,7 @@
     "height": 1080,
     "catalog": "/tmp/changer_files.txt",
     "files": {
-        "type": ".+\\.(avif|bmp|jp.?g|png|svg|webp)",
+        "type": ".+\\.(avif|bmp|heic|jp.?g|png|svg|webp)",
         "folders": [
             {
                 "path": "/home/<void>/Pictures/",

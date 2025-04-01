@@ -13,8 +13,6 @@ class Exceptions:
             del self.exceptions[filename]
 
     get_exception = lambda self, filename: self.exceptions[filename] if filename in self.exceptions else None
-    # def get_exception(self, filename: str) -> str | None:
-    #     return self.exceptions[filename] if filename in self.exceptions else None
     
     def set_exception(self, filename: str, exception: str) -> None:
         self.exceptions[filename] = exception
@@ -75,8 +73,7 @@ class Changer:
             back.append(command)
         elif module['type'] == 'system':
             sysinfo = self.system.create_temp_file(suffix='.txt', mode='w')
-            extra = self.system.create_temp_file(mode='w')
-            execute(['./scripts/sysinfo.sh', sysinfo, module['file'], module['token'], extra])
+            execute(['./scripts/sysinfo.sh', sysinfo, module['file'], module['token']])
             fore.append(f'{command} -stroke none -fill {module['color']} \\')
             back.append(f'{command} -strokewidth 2 -stroke {module['shadow']} \\')
             command = f'    -annotate {module['geometry']} @{sysinfo} \\'
@@ -255,8 +252,6 @@ class Changer:
         _, result, _ = script.run()
         components = result.split('\n')
         __hex__ = lambda i: ('0' + hex(round(float(components[i])))[2:])[-2:]
-        if keyword == 'median':
-            __hex__ = lambda i: ('0' + hex(int(components[i]))[2:])[-2:]
         return f'#{__hex__(0)}{__hex__(1)}{__hex__(2)}'
 
     def __set_backdrop__(self, style: str, exception: bool) -> str:
