@@ -50,13 +50,7 @@ get_desktop() {
     ps -e | grep -E '^.* Hyprland$' > /dev/null
     if [ $? -eq 0 ]; then
         DESKTOP='Hyprland'
-        if ! [ -z $1 ]; then
-            hyprctl version -j > $1
-            V=`jq .tag < $1 | tr -d '"'`
-            D=`jq .commit_date < $1 | tr -d '"'`
-            VERSION="$DESKTOP $V ($D)"
-            unset D V
-        fi
+        VERSION="$DESKTOP `hyprctl -j version | jq -r '. | "\(.tag) commit \(.commit) (\(.commit_date))"'`"
         PID=`pidof Hyprland`
     fi
     # i3
@@ -103,4 +97,4 @@ get_desktop() {
     fi
 }
 
-get_desktop $1
+get_desktop
