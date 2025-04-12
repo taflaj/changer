@@ -5,7 +5,7 @@
 python3 --version > $1
 magick -version | grep Version | sed -e 's/Version: //' -e 's/http.*$//' >> $1
 source scripts/desktop.sh
-echo $VERSION >> $1
+echo -e $VERSION >> $1
 $SHELL --version | head -1 >> $1
 uname -norv >> $1
 source /etc/os-release
