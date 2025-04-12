@@ -64,8 +64,10 @@ get_desktop() {
     ps -e | grep -E '^.* plasmashell$' > /dev/null
     if [ $? -eq 0 ]; then
         DESKTOP='KDE'
-        VERSION=`kded5 --version`
-        PID=`pidof kded5`
+        VK=`kded6 --version 2> /dev/null`
+        VP=`plasmashell --version 2> /dev/null`
+        VERSION="$VK\n$VP"
+        PID=`pidof kded6`
     fi
     # MATE
     ps -e | grep -E '^.* mate-session$' > /dev/null

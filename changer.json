@@ -80,12 +80,13 @@
             "blank": {
                 "color": "Black"
             },
-            "blur": "2x2",
+            "blur": "5x4",
             "overlap": {
                 "width": 80,
                 "height": 80
             }
         },
+        "history": [],
         "exceptions": {}
     }
 }

@@ -32,15 +32,26 @@ elif [ "$DESKTOP" == "Hyprland" ]; then
     MONITOR=`hyprctl monitors | head -1 | cut -d ' ' -f 2`
     (hyprctl hyprpaper unload $1 && hyprctl hyprpaper preload $1 && hyprctl hyprpaper wallpaper "$MONITOR, $1") > /dev/null
 elif [ "$DESKTOP" = "KDE" ]; then
-    qdbus org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript "
-        var allDesktops = desktops();
-        print (allDesktops);
-        for (i = 0; i < allDesktops.length; i++) {
-            d = allDesktops[i];
-            d.wallpaperPlugin = \"org.kde.image\";
-            d.currentConfigGroup = Array(\"Wallpaper\", \"org.kde.image\", \"General\");
-            d.writeConfig(\"Image\", \"file://$1\")
-        }"
+    # It's not enough to change the file; you must also change the filename
+    WP=/tmp/changer_wallpaper_`date +'%Y%m%d_%H%M%S'`.jpeg
+    echo -n $WP
+    cp -p $1 $WP
+    plasma_qdbus_script="
+        desktops().forEach(d => {
+            d.currentConfigGroup = Array(
+                \"Wallpaper\",
+                \"org.kde.image\",
+                \"General\");
+            d.writeConfig(\"Image\", \"file://$WP\");
+            d.reloadConfig();
+        });"
+    dbus-send --session --type=method_call --dest=org.kde.plasmashell /PlasmaShell org.kde.PlasmaShell.evaluateScript string:"$plasma_qdbus_script"
+    dbus_exitcode="$?"
+    if [[ "$dbus_exitcode" -eq 0 && "${KDE_SESSION_VERSION}" -eq '6' ]]; then
+        # Update KDE lock screen background with a blurred copy
+        magick $WP -channel RGBA -blur $2 $1
+        kwriteconfig6 --file kscreenlockerrc --group Greeter --group Wallpaper --group org.kde.image --group General --key Image "$1"
+    fi
 elif [ "$DESKTOP" = "MATE" ]; then
     gsettings set org.mate.background picture-filename "$1"
 elif [ "$DESKTOP" = "sway" ]; then

@@ -18,6 +18,15 @@ class System:
                 os.remove(trash.pop())
             except FileNotFoundError:
                 pass
+        try:
+            history = self.config['wallpaper']['history']
+        except AttributeError:
+            history = []
+        while len(history) > 1:
+            try:
+                os.unlink(history.pop(0))
+            except FileNotFoundError:
+                pass
 
     def create_temp_file(self, prefix: str='/tmp/changer_', suffix: str=None, mode: str='w+b') -> str:
         with tempfile.NamedTemporaryFile(prefix=prefix, suffix=suffix, mode=mode, delete=False) as f:

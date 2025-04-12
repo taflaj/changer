@@ -343,7 +343,9 @@ class Changer:
         wallpaper = self.config['wallpaper']['wallpaper']
         script.append(f'magick {backdrop} {background} -composite {foreground} -composite {wallpaper}')
         script.run()
-        execute(['./scripts/wallpaper.sh', wallpaper])
+        _, result, _ = execute(['./scripts/wallpaper.sh', wallpaper, self.config['wallpaper']['filler']['blur']])
+        if len(result) > 0:
+            self.config['wallpaper']['history'].append(result)
 
     def exit(self, code: int) -> None:
         self.system.close()
