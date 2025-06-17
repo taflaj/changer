@@ -76,6 +76,13 @@ get_desktop() {
         VERSION=`mate-session --version`
         PID=`pidof mate-session`
     fi
+    # niri
+    ps -e | grep -E '^.* niri-session$' > /dev/null
+    if [ $? -eq 0 ]; then
+        DESKTOP="niri"
+        VERSION=`niri --version`
+        PID=`pidof -x niri-session`
+    fi
     # Qtile
     ps -e | grep -E '^.* qtile$' > /dev/null
     if [ $? -eq 0 ]; then
