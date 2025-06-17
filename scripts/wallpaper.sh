@@ -54,6 +54,8 @@ elif [ "$DESKTOP" = "KDE" ]; then
     fi
 elif [ "$DESKTOP" = "MATE" ]; then
     gsettings set org.mate.background picture-filename "$1"
+elif [ "$DESKTOP" = "niri" ]; then
+    swww img "$1"
 elif [ "$DESKTOP" = "sway" ]; then
     export SWAYSOCK=$(ls /run/user/1000/sway-ipc.* | head -n 1)
     swaymsg "output * bg $1 center" > /dev/null
