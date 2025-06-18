@@ -21,16 +21,20 @@ get_env() {
 
 source scripts/desktop.sh
 get_env
-if [ "$DESKTOP" = "Budgie" ] || [ "$DESKTOP" = "Gnome" ]; then
-    gsettings set org.gnome.desktop.background picture-uri "file://$1"
-    gsettings set org.gnome.desktop.background picture-uri-dark "file://$1"
-elif [ "$DESKTOP" = "bspwm" ] || [ "$DESKTOP" = "dwm" ] || [ "$DESKTOP" = "herbstluftwm" ] || [ "$DESKTOP" = "i3" ] || [ "$DESKTOP" = "Qtile" ]; then
+if [ "$DESKTOP" = "bspwm" ] || [ "$DESKTOP" = "dwm" ] || [ "$DESKTOP" = "herbstluftwm" ] || [ "$DESKTOP" = "i3" ] || [ "$DESKTOP" = "Qtile" ]; then
     # nitrogen --set-centered "$WALLPAPER"
     feh --bg-center "$1"
+elif [ "$DESKTOP" = "Budgie" ] || [ "$DESKTOP" = "Gnome" ]; then
+    gsettings set org.gnome.desktop.background picture-uri "file://$1"
+    gsettings set org.gnome.desktop.background picture-uri-dark "file://$1"
+elif [ "$DESKTOP" == "Cinnamon" ]; then
+    gsettings set org.cinnamon.desktop.background picture-uri "file://$1"
 elif [ "$DESKTOP" == "Hyprland" ]; then
     # MONITOR=`hyprctl monitors | head -1 | awk '{print $2}'`
     MONITOR=`hyprctl monitors | head -1 | cut -d ' ' -f 2`
     (hyprctl hyprpaper unload $1 && hyprctl hyprpaper preload $1 && hyprctl hyprpaper wallpaper "$MONITOR, $1") > /dev/null
+    # If you have the swww daemon running, you could comment the lines above out and uncomment the below
+    # swww img "$1"
 elif [ "$DESKTOP" = "KDE" ]; then
     # It's not enough to change the file; you must also change the filename
     WP=/tmp/changer_wallpaper_`date +'%Y%m%d_%H%M%S'`.jpeg

@@ -14,6 +14,9 @@ if [ -e /etc/lsb-release ]; then
 fi
 if [ "$ID" = "manjaro" ]; then
     echo "$NAME $DISTRIB_RELEASE \"$DISTRIB_CODENAME\"" >> $1
+elif [ "$ID" = "nixos" ]; then
+    GEN=`nixos-rebuild list-generations --json | jq --raw-output '.[] | select(.current == true) | .generation, .nixosVersion, .date'`
+    printf "%s %s %s #%d version %s %s\n" ${PRETTY_NAME[0]} ${PRETTY_NAME[1]} ${PRETTY_NAME[2]} $GEN >> $1
 elif [ -z "$VERSION_CODENAME" ]; then
     echo $PRETTY_NAME >> $1
 else
@@ -22,5 +25,5 @@ fi
 ip -br a | grep -v 127.0.0.1 | awk '{split($0, ip, " ")} {print $1 ":"} {for (i = 3; i <= length(ip); i++) print "  " ip[i]}' >> $1
 # external IP address and other info
 curl --silent "ipinfo.io/?token=$3" |
-    jq -j '. | "\(.ip) \(.city)/\(.region)/\(.postal)/\(.country) (\(.org))"' \
+    jq --join-output '. | "\(.ip) \(.city)/\(.region)/\(.postal)/\(.country) (\(.org))"' \
     >> $1
