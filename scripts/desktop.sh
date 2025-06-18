@@ -19,7 +19,7 @@ get_desktop() {
         PID=`pidof budgie-desktop`
     fi
     # Cinnamon
-    ps -e | grep -E '^.* cinnamon$' > /dev/null
+    ps -ef | grep -E '^.* cinnamon$' > /dev/null
     if [ $? -eq 0 ]; then
         DESKTOP='Cinnamon'
         VERSION=`cinnamon --version`
@@ -50,7 +50,7 @@ get_desktop() {
     ps -e | grep -E '^.* Hyprland$' > /dev/null
     if [ $? -eq 0 ]; then
         DESKTOP='Hyprland'
-        VERSION="$DESKTOP `hyprctl -j version | jq -r '. | "\(.tag) commit \(.commit) (\(.commit_date))"'`"
+        VERSION="$DESKTOP `hyprctl -j version | jq --raw-output '. | "\(.tag) commit \(.commit) (\(.commit_date))"'`"
         PID=`pidof Hyprland`
     fi
     # i3
