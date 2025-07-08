@@ -27,18 +27,24 @@ if [ "$DESKTOP" = "bspwm" ] || [ "$DESKTOP" = "dwm" ] || [ "$DESKTOP" = "herbstl
 elif [ "$DESKTOP" = "Budgie" ] || [ "$DESKTOP" = "Gnome" ]; then
     gsettings set org.gnome.desktop.background picture-uri "file://$1"
     gsettings set org.gnome.desktop.background picture-uri-dark "file://$1"
+    # If PaperWM is enabled, then it's not enough to change the file; you must also change the filename
+    gnome-extensions list --enabled | grep --quiet paperwm
+    if [ $? -eq 0 ]; then
+        WP=/tmp/changer_wallpaper_`date +'%Y%m%d_%H%M%S'`.jpeg
+        cp -p $1 $WP
+        dconf write /org/gnome/shell/extensions/paperwm/default-background "'$WP'"
+    fi
 elif [ "$DESKTOP" == "Cinnamon" ]; then
     gsettings set org.cinnamon.desktop.background picture-uri "file://$1"
 elif [ "$DESKTOP" == "Hyprland" ]; then
     # MONITOR=`hyprctl monitors | head -1 | awk '{print $2}'`
     MONITOR=`hyprctl monitors | head -1 | cut -d ' ' -f 2`
     (hyprctl hyprpaper unload $1 && hyprctl hyprpaper preload $1 && hyprctl hyprpaper wallpaper "$MONITOR, $1") > /dev/null
-    # If you have the swww daemon running, you could comment the lines above out and uncomment the below
+    # If you have the swww daemon running, you could comment out the lines above out and uncomment the one below
     # swww img "$1"
 elif [ "$DESKTOP" = "KDE" ]; then
     # It's not enough to change the file; you must also change the filename
     WP=/tmp/changer_wallpaper_`date +'%Y%m%d_%H%M%S'`.jpeg
-    echo -n $WP
     cp -p $1 $WP
     plasma_qdbus_script="
         desktops().forEach(d => {
