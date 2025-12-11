@@ -69,6 +69,14 @@ get_desktop() {
         VERSION="$VK\n$VP"
         PID=`pidof kded6`
     fi
+    # MangoWC
+    ps -e | grep -E --quiet '^.* mango$'
+    if [ $? -eq 0 ]; then
+        DESKTOP='MangoWC'
+        VERSION=`mango -v 2>&1`
+        PID=`pidof mango`
+        export WAYLAND_DISPLAY='wayland-0'
+    fi
     # MATE
     ps -e | grep -E --quiet '^.* mate-session$'
     if [ $? -eq 0 ]; then
@@ -89,6 +97,13 @@ get_desktop() {
         DESKTOP='Qtile'
         VERSION=`/home/zezo/.local/bin/qtile --version | awk '{print "Qtile " $1}'`
         PID=`pidof -x qtile`
+    fi
+    # scroll
+    ps -e | grep -E --quiet '^.* scroll$'
+    if [ $? -eq 0 ]; then
+        DESKTOP='scroll'
+        VERSION=`scroll --version`
+        PID=`pidof scroll`
     fi
     # sway
     ps -e | grep -E --quiet '^.* sway$'
