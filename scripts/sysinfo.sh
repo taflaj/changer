@@ -2,7 +2,10 @@
 
 # scripts/sysinfo.sh
 
-python3 --version > $1
+P=`uptime --pretty | sed -e 's/u/U/'`
+S=`uptime --since`
+echo $P since $S > $1
+python3 --version >> $1
 magick -version | grep Version | sed -e 's/Version: //' -e 's/http.*$//' >> $1
 source scripts/desktop.sh
 echo -e $VERSION >> $1
