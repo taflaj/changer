@@ -465,7 +465,7 @@ version          Displays the current program version and exits.
         logging.debug(self.args)
         logging.debug(self.extra)
         config_file = self.args.config
-        logging.info(f"Reading configuration file {config_file}")
+        logging.info(f"{sys.argv[0]} {version} is reading configuration file {config_file}")
         try:
             with open(config_file, "r") as f:
                 self.config = json.load(f)
