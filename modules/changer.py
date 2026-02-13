@@ -9,50 +9,54 @@ import re
 import secrets
 import sys
 import time
+from dataclasses import dataclass
+from typing import Final
 
+from modules.models.models import Models
 from modules.system import Script, System, execute
 
+COPYRIGHT: Final[str] = "Copyright © 2024-2026 Jose Tafla. All rights reserved."
 
+
+@dataclass
 class Exceptions:
-    def __init__(self, exceptions: dict) -> None:
-        self.exceptions = exceptions
+    exceptions: dict
+
+    def add_rule(self, filename: str, exception: str) -> None:
+        if filename not in self.exceptions:
+            self.exceptions[filename] = []
+        self.exceptions[filename].append(exception)
 
     def clear_exception(self, filename: str) -> None:
         if filename in self.exceptions:
             del self.exceptions[filename]
 
-    def get_exception(self, filename: str) -> str | None:
+    def get_rules(self, filename: str) -> list[str] | None:
         return self.exceptions[filename] if filename in self.exceptions else None
 
-    def set_exception(self, filename: str, exception: str) -> None:
-        self.exceptions[filename] = exception
 
-
+@dataclass(init=False)
 class Changer:
-    def __init__(self, cwd: str) -> None:
-        os.chdir(cwd[: cwd.rfind("/")])
+    args: argparse.Namespace
+    extra: list[str]
+    config: dict
+    system: System
+    exceptions: Exceptions
+    catalog: Models
+
+    def __init__(self, cmd: str, args: argparse.Namespace, extra: list[str]) -> None:
+        os.chdir(cmd[: cmd.rfind("/")])
         logging.debug(f"Running from {os.getcwd()}")
-        parser = argparse.ArgumentParser()
-        parser.add_argument(
-            "command",
-            help=f"Command to execute (run `{sys.argv[0]} commands' to see the list of available commands)",
-        )
-        default_config = "./changer.json"
-        parser.add_argument(
-            "-c",
-            "--config",
-            help=f"Configuration file (default={default_config})",
-            default=default_config,
-        )
-        self.args, self.extra = parser.parse_known_args()
+        self.args = args
+        self.extra = extra
 
     def __help__(self, version: str) -> None:
         self.__do_version__(version)
-        # print()
         print("""Commands:
 =========
 commands         Presents this list and exits.
 convert <image>  Converts <image> to different formats so it can be presented on a blog.
+count            Shows the number of files on the repository and exits.
 delete           Deletes the current wallpaper from the repository.
 next             Changes the wallpaper, setting it to the predefined style.
 reload           Reloads all pictures according to the configuration.
@@ -250,22 +254,26 @@ version          Displays the current program version and exits.
         self.__do_next__()
 
     def __do_next__(self) -> None:
-        with open(self.catalog, "r") as f:
-            files = f.read().splitlines()
+        total: int = self.__get_count__()
+        if total == 0:
+            logging.info("Repository is empty. Recreating…")
+            self.__do_reload__()
+            total = self.__get_count__()
         exception = True
         while True:
-            n = secrets.randbelow(len(files))
-            filename = files[n]
-            mode = self.exceptions.get_exception(filename)
-            if mode is None:
+            n = secrets.randbelow(total)
+            filename = self.catalog.get_nth_file(n)
+            rules = self.exceptions.get_rules(filename)
+            logging.debug(f"Rules for {filename}: {rules}")
+            if rules is None:
                 style = self.config["wallpaper"]["render"]
                 exception = False
                 break
-            elif mode == "skip":
+            elif "skip" in rules:
                 logging.info(f"Skipping #{n}: {filename}")
                 continue
             else:
-                style = mode
+                style = rules[-1]
                 logging.info(f"Custom style: {style}")
                 break
         logging.info(f"{n}: {filename}")
@@ -274,23 +282,22 @@ version          Displays the current program version and exits.
 
     def __do_reload__(self) -> None:
         pattern = re.compile(self.config["files"]["type"], re.IGNORECASE)
-        files = set()
         folders = self.config["files"]["folders"]
+        self.catalog.begin()
+        self.catalog.reset_repo()
         for folder in folders:
             path = folder["path"] + "**"
             all_files = glob.glob(path, recursive=folder["recursive"])
             for filename in all_files:
                 if os.path.isfile(filename) and re.match(pattern, filename) is not None:
-                    files.add(filename)
-        logging.info(f"{len(files)} files in repository")
-        with open(self.catalog, "w") as f:
-            for filename in files:
-                f.write(filename + "\n")
+                    self.catalog.add_to_repo(filename)
+        self.catalog.commit()
+        self.__get_count__(True)
 
     def __do_skip__(self) -> None:
         filename = self.config["wallpaper"]["file"]
         logging.info(f"Skipping {filename}")
-        self.exceptions.set_exception(filename, "skip")
+        self.exceptions.add_rule(filename, "skip")
         self.__do_next__()
 
     def __do_style__(self, style: str) -> None:
@@ -305,18 +312,18 @@ version          Displays the current program version and exits.
             if style in ["fit", "scale"]
             else style
         )
-        logging.info(f"New custom style for {filename}: {style}")
+        logging.info(f"New rule for {filename}: {style}")
         if style == "default":
             self.exceptions.clear_exception(filename)
             style = self.config["wallpaper"]["render"]
             exception = False
         else:
-            self.exceptions.set_exception(filename, style)
+            self.exceptions.add_rule(filename, style)
         self.__set_wallpaper__(style, exception)
 
     def __do_version__(self, version: str) -> None:
         print(f"{sys.argv[0]} {version}")
-        print("Copyright © 2024, 2025 Jose Tafla. All rights reserved.")
+        print(COPYRIGHT)
 
     def __get_base_color__(self, keyword: str, input_file: str | None = None) -> str:
         script = Script(self.system)
@@ -333,6 +340,12 @@ version          Displays the current program version and exits.
             return ("0" + hex(round(float(components[i])))[2:])[-2:]
 
         return f"#{__hex__(0)}{__hex__(1)}{__hex__(2)}"
+
+    def __get_count__(self, verbose: bool = False) -> int:
+        count: int = self.catalog.get_count()
+        if verbose:
+            logging.info(f"{count} files in repository")
+        return count
 
     def __set_backdrop__(self, style: str, exception: bool) -> str:
         filename = self.config["wallpaper"]["file"]
@@ -439,18 +452,15 @@ version          Displays the current program version and exits.
             f"magick {backdrop} {background} -composite {foreground} -composite {wallpaper}"
         )
         script.run()
-        _, result, _ = execute(
+        execute(
             [
                 "./scripts/wallpaper.sh",
                 wallpaper,
                 self.config["wallpaper"]["filler"]["blur"],
             ]
         )
-        if len(result) > 0:
-            self.config["wallpaper"]["history"].append(result)
 
     def exit(self, code: int) -> None:
-        self.system.close()
         if code == 0:
             file = self.args.config
             try:
@@ -458,63 +468,62 @@ version          Displays the current program version and exits.
             except FileNotFoundError:
                 pass
             with open(file, "w") as f:
-                json.dump(self.config, f, indent=4)
+                json.dump(self.config, f, indent=2)
+        logging.info("Done!")
         sys.exit(code)
 
     def start(self, version: str) -> None:
         logging.debug(self.args)
         logging.debug(self.extra)
         config_file = self.args.config
-        logging.info(f"{sys.argv[0]} {version} is reading configuration file {config_file}")
+        logging.info(
+            f"{sys.argv[0]} {version} is reading configuration file {config_file}"
+        )
         try:
             with open(config_file, "r") as f:
                 self.config = json.load(f)
         except FileNotFoundError:
             logging.critical(f"Configuration file {config_file} not found.")
             self.exit(2)
-        self.system = System(self.config)
-        self.catalog = self.config["catalog"]
         self.exceptions = Exceptions(self.config["wallpaper"]["exceptions"])
-        try:
-            command = self.args.command
-            if command == "commands" or command == "help":
-                self.__help__(version)
-            elif command == "convert":
-                self.__do_convert__()
-            elif command == "delete":
-                self.__do_delete__()
-            elif command == "next":
+        with System(self.config) as self.system:
+            with Models(self.config["catalog"]) as self.catalog:
+                exit_code: int = 0
                 try:
-                    self.__do_next__()
-                except FileNotFoundError:
-                    logging.info(
-                        f"Repository {self.catalog} does not exist. Recreating…"
-                    )
-                    self.__do_reload__()
-                    self.__do_next__()
-            elif command == "reload":
-                self.__do_reload__()
-            elif command == "skip":
-                self.__do_skip__()
-            elif command == "version":
-                self.__do_version__(version)
-            elif command in [
-                "center",
-                "default",
-                "combo",
-                "fill",
-                "fit",
-                "mosaic",
-                "scale",
-                "stretch",
-                "tile",
-                "zoom",
-            ]:
-                self.__do_style__(command)
-            else:
-                print(f"Unknown command: {command}")
-                self.exit(3)
-            self.exit(0)
-        except Exception as e:
-            logging.exception(e, exc_info=True, stack_info=True)
-            self.exit(1)
+                    command = self.args.command
+                    if command == "commands" or command == "help":
+                        self.__help__(version)
+                    elif command == "convert":
+                        self.__do_convert__()
+                    elif command == "count":
+                        self.__get_count__(True)
+                    elif command == "delete":
+                        self.__do_delete__()
+                    elif command == "next":
+                        self.__do_next__()
+                    elif command == "reload":
+                        self.__do_reload__()
+                    elif command == "skip":
+                        self.__do_skip__()
+                    elif command == "version":
+                        self.__do_version__(version)
+                    elif command in [
+                        "center",
+                        "default",
+                        "combo",
+                        "fill",
+                        "fit",
+                        "mosaic",
+                        "scale",
+                        "stretch",
+                        "tile",
+                        "zoom",
+                    ]:
+                        self.__do_style__(command)
+                    else:
+                        print(f"Unknown command: {command}")
+                        exit_code = 3
+                except Exception as e:
+                    logging.exception(e, exc_info=True, stack_info=True)
+                    exit_code = 1
+        self.exit(exit_code)

@@ -119,6 +119,11 @@ get_desktop() {
         VERSION=`xfce4-session --version | grep xfce4-session | awk '{print "Xfce " $2}'`
         PID=`pidof xfce4-session`
     fi
+    # DankMaterialShell (addon)
+    ps -e | grep -E --quiet '^.* dms$'
+    if [ $? -eq 0 ]; then
+        VERSION=$VERSION\\n`dms version`
+    fi
 }
 
 get_desktop

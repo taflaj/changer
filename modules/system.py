@@ -1,18 +1,22 @@
-# modules/system.pi
+# modules/system.py
 
 import logging
 import os
 import stat
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from typing import List, Tuple
 
 
+@dataclass
 class System:
-    def __init__(self, config: dict) -> None:
-        self.config = config
+    config: dict
 
-    def close(self) -> None:
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
         try:
             trash = self.config["files"]["trash"]
         except AttributeError:
@@ -20,15 +24,6 @@ class System:
         while trash:
             try:
                 os.remove(trash.pop())
-            except FileNotFoundError:
-                pass
-        try:
-            history = self.config["wallpaper"]["history"]
-        except AttributeError:
-            history = []
-        while len(history) > 1:
-            try:
-                os.unlink(history.pop(0))
             except FileNotFoundError:
                 pass
 
@@ -45,7 +40,11 @@ class System:
             return f.name
 
 
+@dataclass(init=False)
 class Script:
+    system: System
+    filename: str
+
     def __init__(self, system: System) -> None:
         self.system = system
         self.reset()
