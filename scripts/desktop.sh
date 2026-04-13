@@ -33,7 +33,7 @@ get_desktop() {
         PID=`pidof dwm`
     fi
     # GNOME
-    ps -ef | grep --quiet gnome-shell$
+    ps -e | grep --quiet gnome-shell$
     if [ $? -eq 0 ]; then
         DESKTOP='Gnome'
         VERSION=`gnome-shell --version`
