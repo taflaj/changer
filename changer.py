@@ -9,7 +9,7 @@ from typing import Final
 
 from modules.changer import COPYRIGHT, Changer
 
-VERSION: Final[str] = "26.02.0"
+VERSION: Final[str] = "26.04.0"
 NAME: Final[str] = "changer"
 
 
